@@ -12,10 +12,8 @@ file(
 )
 include(${CMAKE_CURRENT_BINARY_DIR}/cmake/CPM.cmake)
 
-set(LIBS)
-
-
 ## Dependencies
+set(LIBS)
 
 # SDL
 CPMAddPackage("gh:libsdl-org/SDL#4c70aa3")
