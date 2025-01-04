@@ -44,7 +44,7 @@ int main() {
 	if (!fragmentShader)
 		throw SDLException{"Couldn't load fragment shader"};
 
-	SDL_Surface *image_data{
+	SDL_Surface *imageData{
 		LoadImage("screenshot.png", 4)
 	};
 
@@ -101,8 +101,8 @@ int main() {
 	SDL_GPUTextureCreateInfo textureCreateInfo{
 		.format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM,
 		.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER,
-		.width = static_cast<Uint32>(image_data->w),
-		.height = static_cast<Uint32>(image_data->h),
+		.width = static_cast<Uint32>(imageData->w),
+		.height = static_cast<Uint32>(imageData->h),
 		.layer_count_or_depth = 1,
 		.num_levels = 1,
 	};
@@ -166,7 +166,7 @@ int main() {
 	SDL_UnmapGPUTransferBuffer(device, transferBuffer);
 
 	SDL_GPUTransferBufferCreateInfo textureTransferBufferCreateInfo{
-		.size = static_cast<Uint32>(image_data->pitch * image_data->h),
+		.size = static_cast<Uint32>(imageData->pitch * imageData->h),
 	};
 	auto textureTransferBuffer{SDL_CreateGPUTransferBuffer(device, &textureTransferBufferCreateInfo)};
 	if (!textureTransferBuffer)
@@ -180,8 +180,8 @@ int main() {
 
 	std::span textureDataSpan{textureTransferBufferDataPtr, textureTransferBufferCreateInfo.size};
 	std::span imagePixels{
-		static_cast<Uint8 *>(image_data->pixels),
-		static_cast<size_t>(image_data->pitch * image_data->h)
+		static_cast<Uint8 *>(imageData->pixels),
+		static_cast<size_t>(imageData->pitch * imageData->h)
 	};
 	std::ranges::copy(imagePixels, textureDataSpan.begin());
 
@@ -213,8 +213,8 @@ int main() {
 
 	SDL_GPUTextureRegion textureRegion{
 		.texture = texture,
-		.w = static_cast<Uint32>(image_data->w),
-		.h = static_cast<Uint32>(image_data->h),
+		.w = static_cast<Uint32>(imageData->w),
+		.h = static_cast<Uint32>(imageData->h),
 		.d = 1
 	};
 	SDL_UploadToGPUTexture(copyPass, &textureTransferInfo, &textureRegion, false);
@@ -225,6 +225,9 @@ int main() {
 		throw SDLException{"Couldn't submit GPU command buffer"};
 
 	SDL_ReleaseGPUTransferBuffer(device, transferBuffer);
+	SDL_ReleaseGPUTransferBuffer(device, textureTransferBuffer);
+
+	SDL_DestroySurface(imageData);
 
 	SDL_ShowWindow(window);
 
