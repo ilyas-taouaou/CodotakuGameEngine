@@ -16,12 +16,12 @@ include(${CMAKE_CURRENT_BINARY_DIR}/cmake/CPM.cmake)
 set(LIBS)
 
 # SDL
-CPMAddPackage("gh:libsdl-org/SDL#4c70aa3")
+CPMAddPackage("gh:libsdl-org/SDL#a4cd17c")
 list(APPEND LIBS SDL3::SDL3)
 
 # SDL_image
 set(SDLIMAGE_AVIF OFF CACHE BOOL "" FORCE) # Requires Perl and Nasm for libaom (AVIF image format)
-CPMAddPackage("gh:libsdl-org/SDL_image#bcc97c0")
+CPMAddPackage("gh:libsdl-org/SDL_image#1ca9bd8")
 list(APPEND LIBS SDL3_image::SDL3_image)
 
 # glm
