@@ -6,6 +6,9 @@
 #include <span>
 #include <glm/glm.hpp>
 
+#include "glm/ext/matrix_clip_space.hpp"
+#include "glm/ext/matrix_transform.hpp"
+
 static std::filesystem::path BasePath;
 #include "utils.h"
 
@@ -36,7 +39,7 @@ int main() {
 	if (!SDL_ClaimWindowForGPUDevice(device, window))
 		throw SDLException{"Couldn't claim window for GPU device"};
 
-	auto vertexShader{LoadShader(device, "TexturedQuad.vert", 0, 0, 0, 0)};
+	auto vertexShader{LoadShader(device, "TexturedQuadWithMatrix.vert", 0, 1, 0, 0)};
 	if (!vertexShader)
 		throw SDLException{"Couldn't load vertex shader"};
 
@@ -64,6 +67,26 @@ int main() {
 			{0, sizeof(Vertex), SDL_GPU_VERTEXINPUTRATE_VERTEX, 0},
 		},
 	};
+
+	SDL_GPUTextureFormat depthStencilFormat;
+
+	if (SDL_GPUTextureSupportsFormat(
+		device,
+		SDL_GPU_TEXTUREFORMAT_D24_UNORM_S8_UINT,
+		SDL_GPU_TEXTURETYPE_2D,
+		SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET
+	))
+		depthStencilFormat = SDL_GPU_TEXTUREFORMAT_D24_UNORM_S8_UINT;
+	else if (SDL_GPUTextureSupportsFormat(
+		device,
+		SDL_GPU_TEXTUREFORMAT_D32_FLOAT_S8_UINT,
+		SDL_GPU_TEXTURETYPE_2D,
+		SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET
+	))
+		depthStencilFormat = SDL_GPU_TEXTUREFORMAT_D32_FLOAT_S8_UINT;
+	else
+		throw SDLException{"Couldn't find a suitable depth stencil format"};
+
 	SDL_GPUGraphicsPipelineCreateInfo pipelineCreateInfo{
 		.vertex_shader = vertexShader,
 		.fragment_shader = fragmentShader,
@@ -73,9 +96,16 @@ int main() {
 			.vertex_attributes = vertexAttributes.data(),
 			.num_vertex_attributes = vertexAttributes.size(),
 		},
+		.depth_stencil_state = {
+			.compare_op = SDL_GPU_COMPAREOP_LESS,
+			.enable_depth_test = true,
+			.enable_depth_write = true,
+		},
 		.target_info = {
 			.color_target_descriptions = colorTargetDescriptions.data(),
 			.num_color_targets = colorTargetDescriptions.size(),
+			.depth_stencil_format = depthStencilFormat,
+			.has_depth_stencil_target = true,
 		},
 	};
 	auto pipeline{SDL_CreateGPUGraphicsPipeline(device, &pipelineCreateInfo)};
@@ -84,6 +114,23 @@ int main() {
 
 	SDL_ReleaseGPUShader(device, vertexShader);
 	SDL_ReleaseGPUShader(device, fragmentShader);
+
+	int windowWidth, windowHeight;
+	if (!SDL_GetWindowSize(window, &windowWidth, &windowHeight))
+		throw SDLException{"Couldn't get window size"};
+
+	SDL_GPUTextureCreateInfo depthStencilTextureCreateInfo{
+		.format = depthStencilFormat,
+		.usage = SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET,
+		.width = static_cast<Uint32>(windowWidth),
+		.height = static_cast<Uint32>(windowHeight),
+		.layer_count_or_depth = 1,
+		.num_levels = 1,
+	};
+	auto depthStencilTexture{SDL_CreateGPUTexture(device, &depthStencilTextureCreateInfo)};
+	if (!depthStencilTexture)
+		throw SDLException{"Couldn't create GPU texture"};
+
 
 	SDL_GPUSamplerCreateInfo samplerCreateInfo{
 		.min_filter = SDL_GPU_FILTER_LINEAR,
@@ -112,16 +159,47 @@ int main() {
 
 	SDL_SetGPUTextureName(device, texture, "screenshot.png");
 
+	// cube
 	std::vector<Vertex> vertices{
-		{{-0.5f, -0.5f, 0.0f}, {0.0f, 1.0f}},
-		{{0.5f, -0.5f, 0.0f}, {1.0f, 1.0f}},
-		{{0.5f, 0.5f, 0.0f}, {1.0f, 0.0f}},
-		{{-0.5f, 0.5f, 0.0f}, {0.0f, 0.0f}},
+		// Front face
+		{{-0.5f, -0.5f, 0.5f}, {0.0f, 1.0f}},
+		{{0.5f, -0.5f, 0.5f}, {1.0f, 1.0f}},
+		{{0.5f, 0.5f, 0.5f}, {1.0f, 0.0f}},
+		{{-0.5f, 0.5f, 0.5f}, {0.0f, 0.0f}},
+		// Back face
+		{{-0.5f, -0.5f, -0.5f}, {1.0f, 1.0f}},
+		{{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f}},
+		{{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f}},
+		{{-0.5f, 0.5f, -0.5f}, {1.0f, 0.0f}},
+		// Left face
+		{{-0.5f, -0.5f, -0.5f}, {0.0f, 1.0f}},
+		{{-0.5f, -0.5f, 0.5f}, {1.0f, 1.0f}},
+		{{-0.5f, 0.5f, 0.5f}, {1.0f, 0.0f}},
+		{{-0.5f, 0.5f, -0.5f}, {0.0f, 0.0f}},
+		// Right face
+		{{0.5f, -0.5f, -0.5f}, {1.0f, 1.0f}},
+		{{0.5f, -0.5f, 0.5f}, {0.0f, 1.0f}},
+		{{0.5f, 0.5f, 0.5f}, {0.0f, 0.0f}},
+		{{0.5f, 0.5f, -0.5f}, {1.0f, 0.0f}},
+		// Top face
+		{{-0.5f, 0.5f, -0.5f}, {0.0f, 1.0f}},
+		{{0.5f, 0.5f, -0.5f}, {1.0f, 1.0f}},
+		{{0.5f, 0.5f, 0.5f}, {1.0f, 0.0f}},
+		{{-0.5f, 0.5f, 0.5f}, {0.0f, 0.0f}},
+		// Bottom face
+		{{-0.5f, -0.5f, -0.5f}, {1.0f, 1.0f}},
+		{{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f}},
+		{{0.5f, -0.5f, 0.5f}, {0.0f, 0.0f}},
+		{{-0.5f, -0.5f, 0.5f}, {1.0f, 0.0f}},
 	};
 
 	std::vector<Uint32> indices{
-		0, 1, 2,
-		0, 2, 3,
+		0, 1, 2, 2, 3, 0,
+		4, 5, 6, 6, 7, 4,
+		8, 9, 10, 10, 11, 8,
+		12, 13, 14, 14, 15, 12,
+		16, 17, 18, 18, 19, 16,
+		20, 21, 22, 22, 23, 20,
 	};
 
 	SDL_GPUBufferCreateInfo vertexBufferCreateInfo{
@@ -233,12 +311,28 @@ int main() {
 
 	auto isRunning{true};
 	SDL_Event event;
+	float windowAspectRatio{static_cast<float>(windowWidth) / static_cast<float>(windowHeight)};
 
 	while (isRunning) {
 		while (SDL_PollEvent(&event)) {
 			switch (event.type) {
 				case SDL_EVENT_QUIT:
 					isRunning = false;
+				case SDL_EVENT_WINDOW_RESIZED: {
+					if (!SDL_GetWindowSize(window, &windowWidth, &windowHeight))
+						throw SDLException{"Couldn't get window size"};
+					windowAspectRatio = static_cast<float>(windowWidth) / static_cast<float>(windowHeight);
+
+					SDL_ReleaseGPUTexture(device, depthStencilTexture);
+
+					depthStencilTextureCreateInfo.width = static_cast<Uint32>(windowWidth);
+					depthStencilTextureCreateInfo.height = static_cast<Uint32>(windowHeight);
+
+					depthStencilTexture = SDL_CreateGPUTexture(device, &depthStencilTextureCreateInfo);
+					if (!depthStencilTexture)
+						throw SDLException{"Couldn't create GPU texture"};
+				}
+				break;
 				default: break;
 			}
 		}
@@ -259,8 +353,13 @@ int main() {
 					.load_op = SDL_GPU_LOADOP_CLEAR,
 				}
 			};
+			SDL_GPUDepthStencilTargetInfo depthStencilTarget{
+				.texture = depthStencilTexture,
+				.clear_depth = 1.0f,
+				.load_op = SDL_GPU_LOADOP_CLEAR,
+			};
 			auto renderPass{
-				SDL_BeginGPURenderPass(commandBuffer, colorTargets.data(), colorTargets.size(), nullptr)
+				SDL_BeginGPURenderPass(commandBuffer, colorTargets.data(), colorTargets.size(), &depthStencilTarget)
 			};
 
 			SDL_BindGPUGraphicsPipeline(renderPass, pipeline);
@@ -273,6 +372,31 @@ int main() {
 
 			std::array<SDL_GPUTextureSamplerBinding, 1> textureSamplerBindings{{texture, sampler}};
 			SDL_BindGPUFragmentSamplers(renderPass, 0, textureSamplerBindings.data(), textureSamplerBindings.size());
+
+			// projection perspective matrix
+			auto projectionMatrix{glm::perspective(glm::radians(45.0f), windowAspectRatio, 0.1f, 100.0f)};
+
+			// view matrix
+			auto viewMatrix{
+				lookAt(glm::vec3{0.0f, 0.0f, 2.0f}, glm::vec3{0.0f, 0.0f, 0.0f}, glm::vec3{0.0f, 1.0f, 0.0f})
+			};
+
+			// model matrix
+			auto modelMatrix{glm::mat4{1.0f}};
+			auto imageAspectRatio{
+				static_cast<float>(textureCreateInfo.width) / static_cast<float>(textureCreateInfo.height)
+			};
+			// modelMatrix = scale(modelMatrix, glm::vec3{imageAspectRatio, 1.0f, 1.0f});
+			auto ticks{SDL_GetTicks()};
+			modelMatrix = rotate(modelMatrix, glm::radians(static_cast<float>(ticks) * 0.1f),
+			                     glm::vec3{0.0f, 1.0f, 1.0f});
+
+			// MVP matrix
+			auto projectionViewMatrix{projectionMatrix * viewMatrix};
+			auto modelViewProjectionMatrix{projectionViewMatrix * modelMatrix};
+
+			SDL_PushGPUVertexUniformData(commandBuffer, 0, &modelViewProjectionMatrix,
+			                             sizeof(modelViewProjectionMatrix));
 
 			SDL_DrawGPUIndexedPrimitives(renderPass, indices.size(), 1, 0, 0, 0);
 
