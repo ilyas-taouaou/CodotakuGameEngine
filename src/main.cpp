@@ -124,34 +124,6 @@ int main() {
 	if (!SDL_ClaimWindowForGPUDevice(device, window))
 		throw SDLException{"Couldn't claim window for GPU device"};
 
-	auto vertexShader{LoadShader(device, "TexturedQuadWithMatrix.vert", 0, 1, 0, 0)};
-	if (!vertexShader)
-		throw SDLException{"Couldn't load vertex shader"};
-
-	auto fragmentShader{LoadShader(device, "TexturedQuad.frag", 1, 0, 0, 0)};
-	if (!fragmentShader)
-		throw SDLException{"Couldn't load fragment shader"};
-
-	SDL_Surface *imageData{
-		LoadImage("screenshot.png", 4)
-	};
-
-	std::array colorTargetDescriptions{
-		SDL_GPUColorTargetDescription{
-			.format = SDL_GetGPUSwapchainTextureFormat(device, window),
-		},
-	};
-	std::array<SDL_GPUVertexAttribute, 2> vertexAttributes{
-		{
-			{0, 0, SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3, offsetof(Vertex, position)},
-			{1, 0, SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2, offsetof(Vertex, uv)},
-		},
-	};
-	std::array<SDL_GPUVertexBufferDescription, 1> vertexBufferDescriptions{
-		{
-			{0, sizeof(Vertex), SDL_GPU_VERTEXINPUTRATE_VERTEX, 0},
-		},
-	};
 
 	SDL_GPUTextureFormat depthStencilFormat;
 
@@ -172,6 +144,30 @@ int main() {
 	else
 		throw SDLException{"Couldn't find a suitable depth stencil format"};
 
+	auto vertexShader{LoadShader(device, "TexturedQuadWithMatrix.vert", 0, 1, 0, 0)};
+	if (!vertexShader)
+		throw SDLException{"Couldn't load vertex shader"};
+
+	auto fragmentShader{LoadShader(device, "TexturedQuad.frag", 1, 0, 0, 0)};
+	if (!fragmentShader)
+		throw SDLException{"Couldn't load fragment shader"};
+
+	std::array colorTargetDescriptions{
+		SDL_GPUColorTargetDescription{
+			.format = SDL_GetGPUSwapchainTextureFormat(device, window),
+		},
+	};
+	std::array<SDL_GPUVertexAttribute, 2> vertexAttributes{
+		{
+			{0, 0, SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3, offsetof(Vertex, position)},
+			{1, 0, SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2, offsetof(Vertex, uv)},
+		},
+	};
+	std::array<SDL_GPUVertexBufferDescription, 1> vertexBufferDescriptions{
+		{
+			{0, sizeof(Vertex), SDL_GPU_VERTEXINPUTRATE_VERTEX, 0},
+		},
+	};
 	SDL_GPUGraphicsPipelineCreateInfo pipelineCreateInfo{
 		.vertex_shader = vertexShader,
 		.fragment_shader = fragmentShader,
@@ -228,6 +224,10 @@ int main() {
 
 	auto sampler{
 		SDL_CreateGPUSampler(device, &samplerCreateInfo)
+	};
+
+	SDL_Surface *imageData{
+		LoadImage("screenshot.png", 4)
 	};
 
 	SDL_GPUTextureCreateInfo textureCreateInfo{
