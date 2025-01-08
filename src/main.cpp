@@ -156,6 +156,8 @@ int main() {
 	if (!fragmentShader)
 		throw SDLException{"Couldn't load fragment shader"};
 
+	SDL_GPUSampleCount msaaSampleCount{SDL_GPU_SAMPLECOUNT_8};
+
 	std::array colorTargetDescriptions{
 		SDL_GPUColorTargetDescription{
 			.format = SDL_GetGPUSwapchainTextureFormat(device, window),
@@ -181,6 +183,9 @@ int main() {
 			.vertex_attributes = vertexAttributes.data(),
 			.num_vertex_attributes = vertexAttributes.size(),
 		},
+		.multisample_state = {
+			.sample_count = msaaSampleCount,
+		},
 		.depth_stencil_state = {
 			.compare_op = SDL_GPU_COMPAREOP_LESS,
 			.enable_depth_test = true,
@@ -204,6 +209,21 @@ int main() {
 	if (!SDL_GetWindowSize(window, &windowWidth, &windowHeight))
 		throw SDLException{"Couldn't get window size"};
 
+	// msaa texture
+	SDL_GPUTextureCreateInfo msaaTextureCreateInfo{
+		.format = SDL_GetGPUSwapchainTextureFormat(device, window),
+		.usage = SDL_GPU_TEXTUREUSAGE_COLOR_TARGET,
+		.width = static_cast<Uint32>(windowWidth),
+		.height = static_cast<Uint32>(windowHeight),
+		.layer_count_or_depth = 1,
+		.num_levels = 1,
+		.sample_count = msaaSampleCount,
+	};
+	auto msaaTexture{SDL_CreateGPUTexture(device, &msaaTextureCreateInfo)};
+	if (!msaaTexture)
+		throw SDLException{"Couldn't create GPU texture"};
+	SDL_SetGPUTextureName(device, msaaTexture, "MSAA Texture");
+
 	SDL_GPUTextureCreateInfo depthStencilTextureCreateInfo{
 		.format = depthStencilFormat,
 		.usage = SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET,
@@ -211,11 +231,12 @@ int main() {
 		.height = static_cast<Uint32>(windowHeight),
 		.layer_count_or_depth = 1,
 		.num_levels = 1,
+		.sample_count = msaaSampleCount,
 	};
 	auto depthStencilTexture{SDL_CreateGPUTexture(device, &depthStencilTextureCreateInfo)};
 	if (!depthStencilTexture)
 		throw SDLException{"Couldn't create GPU texture"};
-
+	SDL_SetGPUTextureName(device, depthStencilTexture, "Depth Stencil Texture");
 
 	SDL_GPUSamplerCreateInfo samplerCreateInfo{
 		.min_filter = SDL_GPU_FILTER_LINEAR,
@@ -399,9 +420,17 @@ int main() {
 					windowAspectRatio = static_cast<float>(windowWidth) / static_cast<float>(windowHeight);
 
 					SDL_ReleaseGPUTexture(device, depthStencilTexture);
+					SDL_ReleaseGPUTexture(device, msaaTexture);
 
 					depthStencilTextureCreateInfo.width = static_cast<Uint32>(windowWidth);
 					depthStencilTextureCreateInfo.height = static_cast<Uint32>(windowHeight);
+
+					msaaTextureCreateInfo.width = static_cast<Uint32>(windowWidth);
+					msaaTextureCreateInfo.height = static_cast<Uint32>(windowHeight);
+
+					msaaTexture = SDL_CreateGPUTexture(device, &msaaTextureCreateInfo);
+					if (!msaaTexture)
+						throw SDLException{"Couldn't create GPU texture"};
 
 					depthStencilTexture = SDL_CreateGPUTexture(device, &depthStencilTextureCreateInfo);
 					if (!depthStencilTexture)
@@ -423,9 +452,11 @@ int main() {
 		if (swapchainTexture) {
 			std::array colorTargets{
 				SDL_GPUColorTargetInfo{
-					.texture = swapchainTexture,
+					.texture = msaaTexture,
 					.clear_color = SDL_FColor{0.1f, 0.1f, 0.1f, 1.0f},
 					.load_op = SDL_GPU_LOADOP_CLEAR,
+					.store_op = SDL_GPU_STOREOP_RESOLVE,
+					.resolve_texture = swapchainTexture,
 				}
 			};
 			SDL_GPUDepthStencilTargetInfo depthStencilTarget{
