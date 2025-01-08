@@ -9,6 +9,10 @@
 #include <stdexcept>
 #include <fstream>
 #include <SDL3_image/SDL_image.h>
+
+#include "assimp/Importer.hpp"
+#include "assimp/postprocess.h"
+#include "assimp/scene.h"
 #include "glm/ext/matrix_clip_space.hpp"
 #include "glm/ext/matrix_transform.hpp"
 
@@ -227,7 +231,7 @@ int main() {
 	};
 
 	SDL_Surface *imageData{
-		LoadImage("screenshot.png", 4)
+		LoadImage("viking_room.png", 4)
 	};
 
 	SDL_GPUTextureCreateInfo textureCreateInfo{
@@ -242,50 +246,34 @@ int main() {
 	if (!texture)
 		throw SDLException{"Couldn't create GPU texture"};
 
-	SDL_SetGPUTextureName(device, texture, "screenshot.png");
+	SDL_SetGPUTextureName(device, texture, "viking_room.png");
+
+	Assimp::Importer importer;
+	const auto *scene{importer.ReadFile("Content/Models/viking_room.obj", aiProcess_Triangulate)};
+	if (!scene)
+		throw std::runtime_error{"Couldn't load model"};
 
 	// cube
-	std::vector<Vertex> vertices{
-		// Front face
-		{{-0.5f, -0.5f, 0.5f}, {0.0f, 1.0f}},
-		{{0.5f, -0.5f, 0.5f}, {1.0f, 1.0f}},
-		{{0.5f, 0.5f, 0.5f}, {1.0f, 0.0f}},
-		{{-0.5f, 0.5f, 0.5f}, {0.0f, 0.0f}},
-		// Back face
-		{{-0.5f, -0.5f, -0.5f}, {1.0f, 1.0f}},
-		{{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f}},
-		{{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f}},
-		{{-0.5f, 0.5f, -0.5f}, {1.0f, 0.0f}},
-		// Left face
-		{{-0.5f, -0.5f, -0.5f}, {0.0f, 1.0f}},
-		{{-0.5f, -0.5f, 0.5f}, {1.0f, 1.0f}},
-		{{-0.5f, 0.5f, 0.5f}, {1.0f, 0.0f}},
-		{{-0.5f, 0.5f, -0.5f}, {0.0f, 0.0f}},
-		// Right face
-		{{0.5f, -0.5f, -0.5f}, {1.0f, 1.0f}},
-		{{0.5f, -0.5f, 0.5f}, {0.0f, 1.0f}},
-		{{0.5f, 0.5f, 0.5f}, {0.0f, 0.0f}},
-		{{0.5f, 0.5f, -0.5f}, {1.0f, 0.0f}},
-		// Top face
-		{{-0.5f, 0.5f, -0.5f}, {0.0f, 1.0f}},
-		{{0.5f, 0.5f, -0.5f}, {1.0f, 1.0f}},
-		{{0.5f, 0.5f, 0.5f}, {1.0f, 0.0f}},
-		{{-0.5f, 0.5f, 0.5f}, {0.0f, 0.0f}},
-		// Bottom face
-		{{-0.5f, -0.5f, -0.5f}, {1.0f, 1.0f}},
-		{{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f}},
-		{{0.5f, -0.5f, 0.5f}, {0.0f, 0.0f}},
-		{{-0.5f, -0.5f, 0.5f}, {1.0f, 0.0f}},
-	};
+	std::vector<Vertex> vertices;
+	std::vector<Uint32> indices;
 
-	std::vector<Uint32> indices{
-		0, 1, 2, 2, 3, 0,
-		4, 5, 6, 6, 7, 4,
-		8, 9, 10, 10, 11, 8,
-		12, 13, 14, 14, 15, 12,
-		16, 17, 18, 18, 19, 16,
-		20, 21, 22, 22, 23, 20,
-	};
+	for (size_t i{}; i < scene->mNumMeshes; ++i) {
+		const auto *mesh{scene->mMeshes[i]};
+		for (size_t j{}; j < mesh->mNumVertices; ++j) {
+			const auto &vertex{mesh->mVertices[j]};
+			vertices.push_back({
+				.position = glm::vec3{vertex.x, vertex.y, vertex.z},
+				.uv = mesh->mTextureCoords[0]
+					      ? glm::vec2{mesh->mTextureCoords[0][j].x, mesh->mTextureCoords[0][j].y}
+					      : glm::vec2{0.0f, 0.0f},
+			});
+		}
+		for (size_t j{}; j < mesh->mNumFaces; ++j) {
+			const auto &face{mesh->mFaces[j]};
+			for (size_t k{}; k < face.mNumIndices; ++k)
+				indices.push_back(face.mIndices[k]);
+		}
+	}
 
 	SDL_GPUBufferCreateInfo vertexBufferCreateInfo{
 		.usage = SDL_GPU_BUFFERUSAGE_VERTEX,

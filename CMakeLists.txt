@@ -28,6 +28,10 @@ list(APPEND LIBS SDL3_image::SDL3_image)
 CPMAddPackage("gh:g-truc/glm#3c18b0f")
 list(APPEND LIBS glm::glm-header-only)
 
+# assimp
+CPMAddPackage("gh:assimp/assimp#5fa7b8c")
+list(APPEND LIBS assimp::assimp)
+
 ## Executables
 add_executable(${PROJECT_NAME} src/main.cpp)
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_23)
