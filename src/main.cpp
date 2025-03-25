@@ -156,7 +156,7 @@ int main() {
 	if (!fragmentShader)
 		throw SDLException{"Couldn't load fragment shader"};
 
-	SDL_GPUSampleCount msaaSampleCount{SDL_GPU_SAMPLECOUNT_8};
+	SDL_GPUSampleCount msaaSampleCount{SDL_GPU_SAMPLECOUNT_4};
 
 	std::array colorTargetDescriptions{
 		SDL_GPUColorTargetDescription{
