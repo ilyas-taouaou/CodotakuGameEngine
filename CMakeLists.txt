@@ -35,9 +35,15 @@ include_dependency(assimp https://github.com/assimp/assimp v5.4.3)
 list(APPEND LIBS assimp::assimp)
 
 ## Executables
-add_executable(${PROJECT_NAME} src/main.cpp)
+add_executable(
+        ${PROJECT_NAME}
+        src/main.cpp
+        src/AppState.cpp
+        src/Model.cpp
+)
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_23)
 target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBS})
+target_compile_definitions(${PROJECT_NAME} PRIVATE SDL_MAIN_USE_CALLBACKS)
 
 # Copy assets
 file(COPY Content DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
