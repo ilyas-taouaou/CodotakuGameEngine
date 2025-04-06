@@ -3,33 +3,35 @@ project(CodotakuGameEngine)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-# CPM
-file(
-        DOWNLOAD
-        https://github.com/cpm-cmake/CPM.cmake/releases/download/v0.38.3/CPM.cmake
-        ${CMAKE_CURRENT_BINARY_DIR}/cmake/CPM.cmake
-        EXPECTED_HASH SHA256=cc155ce02e7945e7b8967ddfaff0b050e958a723ef7aad3766d368940cb15494
-)
-include(${CMAKE_CURRENT_BINARY_DIR}/cmake/CPM.cmake)
+include(FetchContent)
+function(include_dependency libName gitURL gitTAG)
+    FetchContent_Declare(${libName}
+            GIT_REPOSITORY ${gitURL}
+            GIT_TAG ${gitTAG}
+            GIT_SHALLOW TRUE
+            GIT_PROGRESS TRUE
+    )
+    FetchContent_MakeAvailable(${libName})
+endfunction()
 
 ## Dependencies
 set(LIBS)
 
 # SDL
-CPMAddPackage("gh:libsdl-org/SDL#a4cd17c")
+include_dependency(SDL3 https://github.com/libsdl-org/SDL release-3.2.8)
 list(APPEND LIBS SDL3::SDL3)
 
 # SDL_image
 set(SDLIMAGE_AVIF OFF CACHE BOOL "" FORCE) # Requires Perl and Nasm for libaom (AVIF image format)
-CPMAddPackage("gh:libsdl-org/SDL_image#1ca9bd8")
+include_dependency(SDL3_image https://github.com/libsdl-org/SDL_image release-3.2.4)
 list(APPEND LIBS SDL3_image::SDL3_image)
 
 # glm
-CPMAddPackage("gh:g-truc/glm#3c18b0f")
+include_dependency(glm https://github.com/g-truc/glm 1.0.1)
 list(APPEND LIBS glm::glm-header-only)
 
 # assimp
-CPMAddPackage("gh:assimp/assimp#5fa7b8c")
+include_dependency(assimp https://github.com/assimp/assimp v5.4.3)
 list(APPEND LIBS assimp::assimp)
 
 ## Executables
